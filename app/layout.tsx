@@ -15,5 +15,5 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const settings = await getSettings();
   const theme = { "--ink": settings.primaryColor, "--copper": settings.accentColor } as React.CSSProperties;
-  return <html lang="fr"><body style={theme}><SiteChrome logoUrl={settings.logoUrl} footer={<Footer />} /><main id="contenu">{children}</main></body></html>;
+  return <html lang="fr"><body style={theme}><SiteChrome logoUrl={settings.logoUrl} footer={<Footer />}>{children}</SiteChrome></body></html>;
 }
