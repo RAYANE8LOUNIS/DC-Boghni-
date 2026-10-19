@@ -1,0 +1,7 @@
+import Link from "next/link";
+import { AdminSettingsManager } from "@/components/admin-settings-manager";
+import { AdminShell } from "@/components/admin-shell";
+import { requireSession } from "@/lib/admin";
+
+export const dynamic = "force-dynamic";
+export default async function AdminSettingsPage() { const session = await requireSession(); return <AdminShell user={session.user}><div className="admin-header"><div><p className="eyebrow">Configuration</p><h1>Paramètres</h1></div></div><AdminSettingsManager role={session.user.role} /><section className="admin-card"><div className="admin-card__head"><div><p className="eyebrow">Accès rapide</p><h2>Contenu du club</h2></div></div><div className="admin-settings-grid"><Link href="/admin/effectif"><strong>Effectif</strong><p>Joueurs et membres du staff.</p></Link><Link href="/admin/referentiels"><strong>Référentiels</strong><p>Saisons, compétitions et équipes.</p></Link><Link href="/admin/classement"><strong>Classement</strong><p>Table complète et ajustements de points.</p></Link><Link href="/admin/medias"><strong>Médias</strong><p>Bibliothèque d’images avec texte alternatif.</p></Link><Link href="/admin/partenaires"><strong>Partenaires</strong><p>Logos, liens et ordre d’affichage.</p></Link><Link href="/admin/club"><strong>Histoire & palmarès</strong><p>Chronologie et trophées.</p></Link></div><Link href="/" className="text-link" style={{ margin: "0 24px 24px" }}>Retour au site</Link></section></AdminShell>; }

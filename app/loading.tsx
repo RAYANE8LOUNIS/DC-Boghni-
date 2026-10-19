@@ -1,0 +1,1 @@
+export default function Loading() { return <div className="loading-shell"><div className="container"><div className="skeleton" style={{ height: 22, width: 140, marginBottom: 20 }} /><div className="skeleton" style={{ height: 78, width: "min(740px, 90%)", marginBottom: 50 }} /><div className="skeleton" style={{ height: 240, width: "100%" }} /></div></div>; }

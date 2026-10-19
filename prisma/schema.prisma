@@ -1,0 +1,311 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AdminRole {
+  ADMIN
+  EDITOR
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum MatchStatus {
+  SCHEDULED
+  COMPLETED
+  POSTPONED
+  CANCELLED
+}
+
+enum ContactMessageStatus {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+enum PlayerPosition {
+  GOALKEEPER
+  DEFENDER
+  MIDFIELDER
+  FORWARD
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  role         AdminRole @default(EDITOR)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  articles     Article[]
+  media        MediaAsset[]
+}
+
+model ArticleCategory {
+  id       String    @id @default(cuid())
+  name     String
+  slug     String    @unique
+  articles Article[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Article {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  excerpt     String?
+  content     String
+  imageUrl    String?
+  imageAlt    String?
+  status      ArticleStatus @default(DRAFT)
+  publishedAt DateTime?
+  isDemo      Boolean       @default(false)
+  categoryId  String?
+  category    ArticleCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  authorId    String?
+  author      AdminUser?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([categoryId])
+}
+
+model Player {
+  id          String         @id @default(cuid())
+  name        String
+  slug        String         @unique
+  number      Int?
+  position    PlayerPosition
+  birthDate   DateTime?
+  bio         String?
+  imageUrl    String?
+  imageAlt    String?
+  active      Boolean        @default(true)
+  displayOrder Int           @default(0)
+  isDemo      Boolean        @default(false)
+  seasonId    String?
+  season      Season?        @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([position, active, displayOrder])
+}
+
+model StaffMember {
+  id           String   @id @default(cuid())
+  name         String
+  role         String
+  bio          String?
+  imageUrl     String?
+  imageAlt     String?
+  active       Boolean  @default(true)
+  displayOrder Int      @default(0)
+  isDemo       Boolean  @default(false)
+  seasonId     String?
+  season       Season?  @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Team {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  logoUrl     String?
+  isClub      Boolean   @default(false)
+  isDemo      Boolean   @default(false)
+  homeMatches Match[]  @relation("HomeTeam")
+  awayMatches Match[]  @relation("AwayTeam")
+  standings   Standing[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Season {
+  id           String        @id @default(cuid())
+  name         String
+  slug         String        @unique
+  isCurrent    Boolean       @default(false)
+  isDemo       Boolean       @default(false)
+  players      Player[]
+  staff        StaffMember[]
+  matches      Match[]
+  standings    Standing[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Competition {
+  id        String      @id @default(cuid())
+  name      String
+  slug      String      @unique
+  isDemo    Boolean     @default(false)
+  matches   Match[]
+  standings Standing[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model Match {
+  id            String      @id @default(cuid())
+  seasonId      String
+  competitionId String
+  homeTeamId    String
+  awayTeamId    String
+  kickoffAt     DateTime
+  venue         String?
+  status        MatchStatus @default(SCHEDULED)
+  homeScore     Int?
+  awayScore     Int?
+  report        String?
+  isDemo        Boolean     @default(false)
+  season        Season      @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+  homeTeam     Team        @relation("HomeTeam", fields: [homeTeamId], references: [id], onDelete: Restrict)
+  awayTeam     Team        @relation("AwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([seasonId, kickoffAt])
+  @@index([status, kickoffAt])
+}
+
+model Standing {
+  id            String      @id @default(cuid())
+  seasonId      String
+  competitionId String
+  teamId        String
+  position      Int
+  played        Int         @default(0)
+  wins          Int         @default(0)
+  draws         Int         @default(0)
+  losses        Int         @default(0)
+  goalsFor      Int         @default(0)
+  goalsAgainst  Int         @default(0)
+  points        Int         @default(0)
+  pointsAdjust  Int         @default(0)
+  isDemo        Boolean     @default(false)
+  season        Season      @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Restrict)
+  team          Team        @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([seasonId, competitionId, teamId])
+  @@index([seasonId, competitionId, position])
+}
+
+model Partner {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  logoUrl     String?
+  websiteUrl  String?
+  description String?
+  displayOrder Int     @default(0)
+  active      Boolean  @default(true)
+  isDemo      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MediaAsset {
+  id          String    @id @default(cuid())
+  filename    String
+  storageKey  String    @unique
+  url         String
+  altText     String
+  mimeType    String
+  sizeBytes   Int
+  isDemo      Boolean   @default(false)
+  createdById String?
+  createdBy   AdminUser? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+
+  @@index([createdAt])
+}
+
+model ContactMessage {
+  id        String                @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  status    ContactMessageStatus  @default(UNREAD)
+  ipHash    String?
+  createdAt DateTime              @default(now())
+  readAt    DateTime?
+  archivedAt DateTime?
+
+  @@index([status, createdAt])
+}
+
+model ClubSettings {
+  id              String   @id @default("club")
+  clubName        String   @default("DC Boghni")
+  shortName       String   @default("DCB")
+  tagline         String?
+  description     String?
+  nickname        String?
+  presidentName   String?
+  presidentRole   String?
+  presidentMessage String?
+  currentCompetition String?
+  currentDivision String?
+  sportingNote    String?
+  address         String?
+  email           String?
+  phone           String?
+  mapsUrl         String?
+  instagramUrl    String?
+  facebookUrl     String?
+  youtubeUrl      String?
+  logoUrl         String?
+  heroImageUrl    String?
+  primaryColor    String   @default("#101114")
+  accentColor     String   @default("#202124")
+  legalName       String?
+  legalNotice     String?
+  privacyText     String?
+  officialValidated Boolean @default(false)
+  isDemo          Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+}
+
+model HistoryEvent {
+  id           String   @id @default(cuid())
+  yearLabel    String
+  title        String
+  description  String
+  displayOrder Int      @default(0)
+  isDemo       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Trophy {
+  id           String   @id @default(cuid())
+  yearLabel    String?
+  name         String
+  description  String?
+  displayOrder Int      @default(0)
+  isDemo       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model RateLimitBucket {
+  key         String   @id
+  windowStart DateTime
+  count       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+}
