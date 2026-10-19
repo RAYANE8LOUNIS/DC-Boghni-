@@ -7,7 +7,10 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: projectRoot,
-  turbopack: { root: projectRoot },
+  webpack(config) {
+    config.resolve.alias = { ...(config.resolve.alias || {}), "@": projectRoot };
+    return config;
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },

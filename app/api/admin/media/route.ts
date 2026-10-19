@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getApiSession } from "@/lib/admin";
 import { getPrisma } from "@/lib/prisma";
 import { createUploadUrl, deleteStoredObject, publicStorageUrl } from "@/lib/storage";
-import { mediaCompleteSchema, mediaPrepareSchema } from "@/lib/validations";
+import { mediaCompleteSchema, mediaPrepareSchema, mediaUpdateSchema } from "@/lib/validations";
 
 async function sessionOr401() {
   const session = await getApiSession();
@@ -48,4 +48,14 @@ export async function DELETE(request: Request) {
   const asset = await prisma.mediaAsset.delete({ where: { id: body.id } });
   await deleteStoredObject(asset.storageKey).catch(() => undefined);
   return NextResponse.json({ ok: true });
+}
+
+export async function PATCH(request: Request) {
+  if (!(await sessionOr401())) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
+  const prisma = getPrisma();
+  if (!prisma) return NextResponse.json({ message: "DATABASE_URL est manquante." }, { status: 503 });
+  const parsed = mediaUpdateSchema.safeParse(await request.json());
+  if (!parsed.success) return NextResponse.json({ message: parsed.error.issues[0]?.message || "Données invalides." }, { status: 400 });
+  const asset = await prisma.mediaAsset.update({ where: { id: parsed.data.id }, data: { altText: parsed.data.altText } });
+  return NextResponse.json({ asset });
 }

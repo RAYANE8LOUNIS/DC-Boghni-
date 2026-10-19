@@ -9,13 +9,114 @@ export function AdminMediaManager({ role }: { role?: string }) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [altText, setAltText] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingAltText, setEditingAltText] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  async function load() { const response = await fetch("/api/admin/media"); const result = await response.json(); if (response.ok) setAssets(result.assets || []); else setError(result.message || "Chargement impossible."); }
+
+  async function load() {
+    const response = await fetch("/api/admin/media");
+    const result = await response.json();
+    if (response.ok) setAssets(result.assets || []);
+    else setError(result.message || "Chargement impossible.");
+  }
+
   useEffect(() => { load(); }, []);
-  function selectFile(event: ChangeEvent<HTMLInputElement>) { const selected = event.target.files?.[0] || null; setFile(selected); if (selected && !altText) setAltText(selected.name.replace(/\.[^.]+$/, "")); }
-  async function submit(event: FormEvent) { event.preventDefault(); if (!file) { setError("Choisissez une image."); return; } if (!allowed.includes(file.type)) { setError("Format accepté : JPG, PNG, WebP ou AVIF."); return; } if (file.size > 8 * 1024 * 1024) { setError("La taille maximale est de 8 Mo."); return; } if (altText.trim().length < 2) { setError("Ajoutez un texte alternatif descriptif."); return; } setLoading(true); setError(""); setMessage(""); try { const prepareResponse = await fetch("/api/admin/media", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "prepare", filename: file.name, mimeType: file.type, sizeBytes: file.size, altText }) }); const prepared = await prepareResponse.json(); if (!prepareResponse.ok) throw new Error(prepared.message || "Le stockage n’est pas disponible."); const uploadResponse = await fetch(prepared.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file }); if (!uploadResponse.ok) throw new Error("Le téléversement de l’image a échoué."); const completeResponse = await fetch("/api/admin/media", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "complete", filename: file.name, storageKey: prepared.storageKey, url: prepared.url, mimeType: file.type, sizeBytes: file.size, altText }) }); const completed = await completeResponse.json(); if (!completeResponse.ok) throw new Error(completed.message || "Impossible d’enregistrer l’image."); setMessage("Image téléversée et ajoutée à la bibliothèque."); setFile(null); setAltText(""); load(); } catch (uploadError) { setError(uploadError instanceof Error ? uploadError.message : "Téléversement impossible."); } finally { setLoading(false); } }
-  async function remove(id: string) { if (!window.confirm("Supprimer cette image ?")) return; const response = await fetch("/api/admin/media", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }); const result = await response.json(); if (!response.ok) { setError(result.message || "Suppression impossible."); return; } setMessage("Image supprimée."); load(); }
-  return <div className="admin-manager"><section className="admin-card"><div className="admin-card__head"><div><p className="eyebrow">Stockage S3 / R2</p><h2>Téléverser une image</h2></div></div><form className="admin-form" onSubmit={submit}><div className="field"><label htmlFor="media-file">Fichier image</label><input id="media-file" type="file" accept={allowed.join(",")} onChange={selectFile} required /><small className="form-note">JPG, PNG, WebP ou AVIF · 8 Mo maximum.</small></div><div className="field"><label htmlFor="media-alt">Texte alternatif</label><input id="media-alt" value={altText} onChange={(event) => setAltText(event.target.value)} required placeholder="Décrivez l’image pour l’accessibilité" /></div>{message && <div className="form-message" role="status">{message}</div>}{error && <div className="form-message form-message--error" role="alert">{error}</div>}<button className="button button--dark" type="submit" disabled={loading}>{loading ? "Téléversement…" : "Ajouter à la bibliothèque"}</button></form></section><section className="admin-card"><div className="admin-card__head"><div><p className="eyebrow">Bibliothèque</p><h2>Images disponibles</h2></div></div><div className="admin-list">{assets.length ? assets.map((asset) => <div className="admin-list__item" key={asset.id}><div><strong>{asset.filename}</strong><small>{asset.altText} · {(asset.sizeBytes / 1024).toFixed(0)} Ko</small></div><div className="admin-list__actions"><a className="text-link" href={asset.url} target="_blank" rel="noreferrer">Ouvrir</a>{role === "ADMIN" && <button type="button" onClick={() => remove(asset.id)}>Supprimer</button>}</div></div>) : <div className="admin-empty">Aucune image. Configurez le stockage S3/R2 pour activer les téléversements.</div>}</div></section></div>;
+
+  function selectFile(event: ChangeEvent<HTMLInputElement>) {
+    const selected = event.target.files?.[0] || null;
+    setFile(selected);
+    if (selected && !altText) setAltText(selected.name.replace(/\.[^.]+$/, ""));
+  }
+
+  function beginEdit(asset: Asset) {
+    setEditingId(asset.id);
+    setEditingAltText(asset.altText);
+    setMessage("");
+    setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditingAltText("");
+  }
+
+  async function submitEdit(event: FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/media", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingId, altText: editingAltText })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || "Impossible de modifier le média.");
+      setMessage("Texte alternatif mis à jour.");
+      cancelEdit();
+      load();
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Modification impossible.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitUpload(event: FormEvent) {
+    event.preventDefault();
+    if (!file) { setError("Choisissez une image."); return; }
+    if (!allowed.includes(file.type)) { setError("Format accepté : JPG, PNG, WebP ou AVIF."); return; }
+    if (file.size > 8 * 1024 * 1024) { setError("La taille maximale est de 8 Mo."); return; }
+    if (altText.trim().length < 2) { setError("Ajoutez un texte alternatif descriptif."); return; }
+    setLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      const prepareResponse = await fetch("/api/admin/media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "prepare", filename: file.name, mimeType: file.type, sizeBytes: file.size, altText })
+      });
+      const prepared = await prepareResponse.json();
+      if (!prepareResponse.ok) throw new Error(prepared.message || "Le stockage n’est pas disponible.");
+      const uploadResponse = await fetch(prepared.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+      if (!uploadResponse.ok) throw new Error("Le téléversement de l’image a échoué.");
+      const completeResponse = await fetch("/api/admin/media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete", filename: file.name, storageKey: prepared.storageKey, url: prepared.url, mimeType: file.type, sizeBytes: file.size, altText })
+      });
+      const completed = await completeResponse.json();
+      if (!completeResponse.ok) throw new Error(completed.message || "Impossible d’enregistrer l’image.");
+      setMessage("Image téléversée et ajoutée à la bibliothèque.");
+      setFile(null);
+      setAltText("");
+      load();
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Téléversement impossible.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function remove(id: string) {
+    if (!window.confirm("Supprimer définitivement cette image ?")) return;
+    const response = await fetch("/api/admin/media", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    const result = await response.json();
+    if (!response.ok) { setError(result.message || "Suppression impossible."); return; }
+    setMessage("Image supprimée.");
+    load();
+  }
+
+  return <div className="admin-manager">
+    <section className="admin-card">
+      <div className="admin-card__head"><div><p className="eyebrow">Stockage S3 / R2</p><h2>{editingId ? "Modifier le média" : "Téléverser une image"}</h2></div>{editingId && <button className="button button--outline" type="button" onClick={cancelEdit}>Annuler</button>}</div>
+      {editingId ? <form className="admin-form" onSubmit={submitEdit}><div className="field"><label htmlFor="media-edit-alt">Texte alternatif</label><input id="media-edit-alt" value={editingAltText} onChange={(event) => setEditingAltText(event.target.value)} required /><small className="form-note">Décrivez l’image pour les personnes qui utilisent un lecteur d’écran.</small></div>{message && <div className="form-message" role="status">{message}</div>}{error && <div className="form-message form-message--error" role="alert">{error}</div>}<button className="button button--dark" type="submit" disabled={loading}>{loading ? "Enregistrement…" : "Enregistrer les changements"}</button></form> : <form className="admin-form" onSubmit={submitUpload}><div className="field"><label htmlFor="media-file">Fichier image</label><input id="media-file" type="file" accept={allowed.join(",")} onChange={selectFile} required /><small className="form-note">JPG, PNG, WebP ou AVIF · 8 Mo maximum.</small></div><div className="field"><label htmlFor="media-alt">Texte alternatif</label><input id="media-alt" value={altText} onChange={(event) => setAltText(event.target.value)} required placeholder="Décrivez l’image pour l’accessibilité" /></div>{message && <div className="form-message" role="status">{message}</div>}{error && <div className="form-message form-message--error" role="alert">{error}</div>}<button className="button button--dark" type="submit" disabled={loading}>{loading ? "Téléversement…" : "Ajouter à la bibliothèque"}</button></form>}
+    </section>
+    <section className="admin-card"><div className="admin-card__head"><div><p className="eyebrow">Bibliothèque</p><h2>Images disponibles</h2></div></div><div className="admin-list">{assets.length ? assets.map((asset) => <div className="admin-list__item" key={asset.id}><div><strong>{asset.filename}</strong><small>{asset.altText} · {(asset.sizeBytes / 1024).toFixed(0)} Ko</small></div><div className="admin-list__actions"><a className="text-link" href={asset.url} target="_blank" rel="noreferrer">Ouvrir</a><button type="button" onClick={() => beginEdit(asset)}>Modifier</button>{role === "ADMIN" && <button type="button" onClick={() => remove(asset.id)}>Supprimer</button>}</div></div>) : <div className="admin-empty">Aucune image. Configurez le stockage S3/R2 pour activer les téléversements.</div>}</div></section>
+  </div>;
 }

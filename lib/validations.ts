@@ -148,3 +148,27 @@ export const mediaCompleteSchema = z.object({
   sizeBytes: z.number().int().positive().max(8 * 1024 * 1024),
   altText: z.string().trim().min(2).max(160)
 });
+
+export const mediaUpdateSchema = z.object({
+  id: z.string().min(1),
+  altText: z.string().trim().min(2).max(160)
+});
+
+export const articleCategorySchema = z.object({
+  name: z.string().trim().min(2).max(60)
+});
+
+export const adminUserCreateSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  email: z.string().trim().email().max(160),
+  password: z.string().min(12, "Le mot de passe doit contenir au moins 12 caractères."),
+  role: z.enum(["ADMIN", "EDITOR"])
+});
+
+export const adminUserUpdateSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().trim().min(2).max(120),
+  email: z.string().trim().email().max(160),
+  password: z.string().min(12, "Le mot de passe doit contenir au moins 12 caractères.").or(z.literal("")),
+  role: z.enum(["ADMIN", "EDITOR"])
+});
