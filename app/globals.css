@@ -361,7 +361,11 @@ h3 { font-size:clamp(1.55rem, 2.5vw, 2.25rem); }
 .admin-brand__words small { color:#8e8f91; font-size:9px; text-transform:uppercase; letter-spacing:.15em; }
 .admin-sidebar__rule { height:1px; margin:0 10px 22px; background:#292a2d; }
 .admin-nav-label { margin:0 12px 8px; color:#66676a; font-size:9px; font-weight:800; letter-spacing:.17em; text-transform:uppercase; }
-.admin-sidebar nav { gap:3px; }
+.admin-sidebar { overflow:hidden; }
+.admin-sidebar nav { flex:1 1 auto; min-height:0; gap:3px; overflow-y:auto; overflow-x:hidden; padding-right:4px; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#4d4e51 transparent; }
+.admin-sidebar nav::-webkit-scrollbar { width:5px; }
+.admin-sidebar nav::-webkit-scrollbar-track { background:transparent; }
+.admin-sidebar nav::-webkit-scrollbar-thumb { background:#4d4e51; }
 .admin-sidebar nav a { min-height:42px; gap:12px; padding:11px 12px; border-left:2px solid transparent; color:#9fa0a2; font-size:13px; transition:background .18s ease, color .18s ease, border-color .18s ease; }
 .admin-sidebar nav a svg { color:#696a6d; transition:color .18s ease; }
 .admin-sidebar nav a:hover { color:#fff; background:#18191c; }
@@ -423,11 +427,11 @@ h3 { font-size:clamp(1.55rem, 2.5vw, 2.25rem); }
 
 @media (max-width:900px) {
   .admin-layout { display:block; }
-  .admin-sidebar { position:relative; height:auto; padding:16px 18px 15px; }
+  .admin-sidebar { position:relative; height:auto; overflow:visible; padding:16px 18px 15px; }
   .admin-brand { padding:0 0 15px; }
   .admin-sidebar__rule { margin:0 0 14px; }
   .admin-nav-label { margin-left:0; }
-  .admin-sidebar nav { display:flex; overflow-x:auto; padding-bottom:3px; scrollbar-width:none; }
+  .admin-sidebar nav { display:flex; flex:none; min-height:auto; overflow-x:auto; overflow-y:hidden; padding-bottom:3px; scrollbar-width:none; }
   .admin-sidebar nav::-webkit-scrollbar { display:none; }
   .admin-sidebar nav a { flex:none; min-height:38px; padding:9px 11px; border-left:0; border-bottom:2px solid transparent; }
   .admin-sidebar nav a.active { padding-left:11px; border-bottom-color:var(--admin-accent); }
