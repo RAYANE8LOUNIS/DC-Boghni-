@@ -286,6 +286,31 @@ h3 { font-size:clamp(1.55rem, 2.5vw, 2.25rem); }
 .admin-user small { color:#898883; font-size:10px; text-transform:uppercase; letter-spacing:.1em; }
 .admin-sidebar__bottom button { border:0; color:#c0bfbb; background:transparent; padding:0; font-size:12px; cursor:pointer; }
 .admin-sidebar__bottom button:hover { color:var(--copper-light); }
+.admin-loading { --admin-loading:#dededb; display:grid; grid-template-columns:272px minmax(0,1fr); min-height:100vh; background:#f1f1ef; }
+.admin-loading__sidebar { padding:26px 16px; background:#0d0e10; }
+.admin-loading__brand { display:flex; align-items:center; gap:12px; padding:2px 12px 19px; }
+.admin-loading__brand > span { width:45px; height:45px; background:#242528; }
+.admin-loading__brand > div { display:grid; gap:7px; }
+.admin-loading__brand i { display:block; width:105px; height:8px; background:#242528; }
+.admin-loading__brand i:last-child { width:74px; height:6px; background:#1d1e20; }
+.admin-loading__rule { height:1px; margin:0 10px 22px; background:#292a2d; }
+.admin-loading__label { width:92px; height:7px; margin:0 12px 12px; background:#292a2d; }
+.admin-loading__nav { display:grid; gap:10px; }
+.admin-loading__nav i { height:40px; background:#18191c; }
+.admin-loading__workspace { min-width:0; }
+.admin-loading__topbar { display:flex; justify-content:space-between; align-items:center; height:72px; padding:0 clamp(22px,4vw,64px); background:#f8f8f6; border-bottom:1px solid #dededb; }
+.admin-loading__topbar i { width:150px; height:9px; background:var(--admin-loading); }
+.admin-loading__topbar i:last-child { width:90px; }
+.admin-loading__content { padding:42px clamp(22px,4vw,64px) 80px; }
+.admin-loading__title { display:grid; gap:12px; margin-bottom:32px; }
+.admin-loading__title i { width:110px; height:8px; background:var(--admin-loading); }
+.admin-loading__title b { display:block; width:280px; height:54px; background:var(--admin-loading); }
+.admin-loading__stats { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px; }
+.admin-loading__stats i { height:145px; background:#fff; border:1px solid var(--admin-loading); }
+.admin-loading__columns { display:grid; grid-template-columns:1.1fr .9fr; gap:14px; }
+.admin-loading__columns i { height:300px; background:#fff; border:1px solid var(--admin-loading); }
+.admin-loading__brand i, .admin-loading__brand > span, .admin-loading__label, .admin-loading__nav i, .admin-loading__topbar i, .admin-loading__title i, .admin-loading__title b, .admin-loading__stats i, .admin-loading__columns i { animation:admin-loading-pulse 1.25s ease-in-out infinite alternate; }
+@keyframes admin-loading-pulse { from { opacity:.5; } to { opacity:1; } }
 .admin-main { min-width:0; padding:54px min(5vw,70px) 80px; }
 .admin-header { display:flex; align-items:end; justify-content:space-between; gap:24px; margin-bottom:35px; }
 .admin-header h1 { margin:0; font-size:clamp(3rem,5vw,5rem); }
@@ -427,6 +452,9 @@ h3 { font-size:clamp(1.55rem, 2.5vw, 2.25rem); }
 
 @media (max-width:900px) {
   .admin-layout { display:block; }
+  .admin-loading { display:block; }
+  .admin-loading__sidebar { min-height:220px; }
+  .admin-loading__workspace { display:none; }
   .admin-sidebar { position:relative; height:auto; overflow:visible; padding:16px 18px 15px; }
   .admin-brand { padding:0 0 15px; }
   .admin-sidebar__rule { margin:0 0 14px; }
