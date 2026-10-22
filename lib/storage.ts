@@ -6,10 +6,10 @@ function getClient() {
   return new S3Client({ region: process.env.S3_REGION || "auto", endpoint: process.env.S3_ENDPOINT || undefined, forcePathStyle: Boolean(process.env.S3_ENDPOINT), credentials: { accessKeyId: process.env.S3_ACCESS_KEY_ID, secretAccessKey: process.env.S3_SECRET_ACCESS_KEY } });
 }
 
-export async function createUploadUrl(key: string, contentType: string) {
+export async function createUploadUrl(key: string, contentType: string, sizeBytes: number) {
   const client = getClient();
   if (!client || !process.env.S3_BUCKET) return null;
-  const command = new PutObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key, ContentType: contentType });
+  const command = new PutObjectCommand({ Bucket: process.env.S3_BUCKET, Key: key, ContentType: contentType, ContentLength: sizeBytes });
   return getSignedUrl(client, command, { expiresIn: 300 });
 }
 

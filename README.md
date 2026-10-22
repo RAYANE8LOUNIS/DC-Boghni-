@@ -68,6 +68,17 @@ Les rôles sont `ADMIN` et `EDITOR`. Les éditeurs gèrent le contenu ; les opé
 
 Les routes `/admin/*` redirigent vers la connexion lorsqu’aucune session n’est présente. Les mutations sensibles vérifient aussi le rôle côté serveur. Le stockage média nécessite un bucket S3/R2 avec une URL publique et une configuration CORS autorisant les `PUT` depuis le domaine du site.
 
+## Sécurité appliquée
+
+- Les pages privées et toutes les routes `/api/admin/*` sont protégées par session, puis la session est revalidée contre `AdminUser` en base à chaque requête sensible.
+- Les mutations administratives vérifient l’origine, limitent la taille des requêtes et ne sont pas mises en cache. Les cookies de production sont sécurisés et les en-têtes de protection (CSP, anti-iframe, MIME, permissions, HSTS en production) sont activés.
+- Les connexions échouées et le formulaire de contact utilisent une limitation persistante en PostgreSQL. Les données de formulaire et tous les contenus administrables passent par une validation Zod côté serveur.
+- Les URLs externes acceptent uniquement `http`/`https`, les chemins média sont contrôlés, et les uploads S3/R2 sont limités à 8 Mo, à des types image connus et à la taille déclarée dans l’URL signée.
+- Le rendu des articles utilise du texte React échappé : aucun HTML fourni par un administrateur n’est interprété comme du markup.
+- `npm audit --omit=dev --audit-level=moderate` est propre après les overrides de PostCSS et `deepmerge-ts`. L’audit complet conserve des alertes de l’outillage Tailwind CSS 3, uniquement dans les dépendances de développement ; les supprimer entièrement demanderait une migration majeure vers Tailwind CSS 4.
+
+En production, vérifiez que `NEXTAUTH_SECRET` est long, aléatoire et différent du local, que `NEXTAUTH_URL` correspond exactement à l’origine publique, et que les secrets Railway/S3/SMTP ne sont jamais ajoutés au dépôt. Les identifiants PostgreSQL précédemment exposés dans une conversation doivent être régénérés avant la mise en ligne.
+
 ## Contenus à demander au club
 
 - Nom officiel, abréviation, slogan et couleurs officielles.

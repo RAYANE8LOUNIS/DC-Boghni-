@@ -10,6 +10,13 @@ async function sessionOr401() {
   return session?.user ? session : null;
 }
 
+const extensionByMimeType = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/avif": "avif"
+} as const;
+
 export async function GET() {
   if (!(await sessionOr401())) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
   const prisma = getPrisma();
@@ -22,18 +29,21 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ message: "Non autorisé." }, { status: 401 });
   const prisma = getPrisma();
   if (!prisma) return NextResponse.json({ message: "DATABASE_URL est manquante." }, { status: 503 });
+  const declaredLength = Number(request.headers.get("content-length") || 0);
+  if (declaredLength > 25_000) return NextResponse.json({ message: "Données trop volumineuses." }, { status: 413 });
   const body = await request.json() as unknown;
   if (typeof body === "object" && body !== null && "action" in body && body.action === "prepare") {
     const parsed = mediaPrepareSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ message: parsed.error.issues[0]?.message || "Fichier invalide." }, { status: 400 });
-    const extension = parsed.data.filename.split(".").pop()?.toLowerCase() || "jpg";
+    const extension = extensionByMimeType[parsed.data.mimeType];
     const key = `media/${new Date().getUTCFullYear()}/${randomUUID()}.${extension}`;
-    const uploadUrl = await createUploadUrl(key, parsed.data.mimeType);
+    const uploadUrl = await createUploadUrl(key, parsed.data.mimeType, parsed.data.sizeBytes);
     if (!uploadUrl) return NextResponse.json({ message: "Le stockage S3/R2 n’est pas configuré." }, { status: 503 });
     return NextResponse.json({ uploadUrl, storageKey: key, url: publicStorageUrl(key), filename: parsed.data.filename, mimeType: parsed.data.mimeType, sizeBytes: parsed.data.sizeBytes, altText: parsed.data.altText });
   }
   const parsed = mediaCompleteSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ message: parsed.error.issues[0]?.message || "Données invalides." }, { status: 400 });
+  if (parsed.data.url !== publicStorageUrl(parsed.data.storageKey)) return NextResponse.json({ message: "URL média invalide." }, { status: 400 });
   const asset = await prisma.mediaAsset.create({ data: { filename: parsed.data.filename, storageKey: parsed.data.storageKey, url: parsed.data.url, altText: parsed.data.altText, mimeType: parsed.data.mimeType, sizeBytes: parsed.data.sizeBytes, createdById: session.user.id, isDemo: false } });
   return NextResponse.json({ asset }, { status: 201 });
 }

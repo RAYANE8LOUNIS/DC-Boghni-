@@ -54,3 +54,11 @@ Le formulaire de contact enregistre les messages dans la base. Dans **Messages**
 - Faire relire l’histoire, le palmarès, les biographies et les textes légaux.
 - Vérifier une dernière fois les contenus, les images et les coordonnées avant la mise en production.
 - Exécuter une sauvegarde PostgreSQL et vérifier la restauration sur un environnement séparé.
+
+## 9. Règles de sécurité à conserver
+
+- Ne partagez jamais `DATABASE_URL`, `NEXTAUTH_SECRET`, les clés S3/R2 ou le mot de passe d’un administrateur dans un ticket, un dépôt ou une capture d’écran.
+- Utilisez un secret `NEXTAUTH_SECRET` différent pour chaque environnement et regénérez-le si une ancienne valeur a été exposée.
+- Les comptes administrateurs sont créés uniquement avec la commande prévue ; il n’y a pas d’inscription publique.
+- Les éditeurs peuvent gérer le contenu, mais les suppressions et les paramètres sensibles restent réservés à un administrateur.
+- Si le domaine public, le bucket média ou les secrets changent, mettez à jour les variables Vercel/Railway et vérifiez à nouveau la connexion, le formulaire de contact et l’upload.

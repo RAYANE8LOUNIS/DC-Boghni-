@@ -1,5 +1,25 @@
 import { z } from "zod";
 
+function isHttpUrl(value: string) {
+  try {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function isMediaUrl(value: string) {
+  const isLocalPath = value.startsWith("/") && !value.startsWith("//");
+  const isMediaKey = /^media\/\d{4}\/[a-f0-9-]+\.(jpe?g|png|webp|avif)$/i.test(value);
+  return value === "" || isLocalPath || isMediaKey || isHttpUrl(value);
+}
+
+const optionalExternalUrl = (max = 500) => z.string().trim().max(max).refine((value) => value === "" || isHttpUrl(value), "Utilisez une URL http(s) valide.").optional().or(z.literal(""));
+const optionalMediaUrl = (max = 500) => z.string().trim().max(max).refine(isMediaUrl, "Utilisez un chemin local ou une URL http(s) valide.").optional().or(z.literal(""));
+const safeMediaUrl = (max = 800) => z.string().trim().max(max).refine(isMediaUrl, "Utilisez un chemin local ou une URL http(s) valide.");
+const safeStorageKey = z.string().trim().regex(/^media\/\d{4}\/[a-f0-9-]+\.(jpe?g|png|webp|avif)$/i, "Clé de média invalide.");
+
 export const contactSchema = z.object({
   name: z.string().trim().min(2, "Indiquez votre nom.").max(80),
   email: z.string().trim().email("Indiquez une adresse email valide.").max(160),
@@ -13,7 +33,7 @@ export const articleSchema = z.object({
   excerpt: z.string().trim().max(300).optional().default(""),
   content: z.string().trim().min(10).max(20000),
   category: z.string().trim().min(2).max(60),
-  imageUrl: z.string().trim().url().optional().or(z.literal("")),
+  imageUrl: optionalMediaUrl(),
   imageAlt: z.string().trim().max(160).optional().default(""),
   status: z.enum(["DRAFT", "PUBLISHED"])
 });
@@ -46,12 +66,12 @@ export const settingsSchema = z.object({
   address: z.string().trim().max(240).optional().default(""),
   email: z.string().trim().email().max(160).optional().or(z.literal("")),
   phone: z.string().trim().max(50).optional().default(""),
-  mapsUrl: z.string().trim().url().optional().or(z.literal("")),
-  instagramUrl: z.string().trim().url().optional().or(z.literal("")),
-  facebookUrl: z.string().trim().url().optional().or(z.literal("")),
-  youtubeUrl: z.string().trim().url().optional().or(z.literal("")),
-  logoUrl: z.string().trim().max(500).optional().default(""),
-  heroImageUrl: z.string().trim().max(500).optional().default(""),
+  mapsUrl: optionalExternalUrl(),
+  instagramUrl: optionalExternalUrl(),
+  facebookUrl: optionalExternalUrl(),
+  youtubeUrl: optionalExternalUrl(),
+  logoUrl: optionalMediaUrl(),
+  heroImageUrl: optionalMediaUrl(),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   legalName: z.string().trim().max(180).optional().default(""),
@@ -66,7 +86,7 @@ export const referenceSchema = z.object({
   slug: z.string().trim().max(140).optional().or(z.literal("")),
   isCurrent: z.boolean().optional().default(false),
   isClub: z.boolean().optional().default(false),
-  logoUrl: z.string().trim().max(500).optional().or(z.literal(""))
+  logoUrl: optionalMediaUrl()
 });
 
 export const playerSchema = z.object({
@@ -75,7 +95,7 @@ export const playerSchema = z.object({
   position: z.enum(["GOALKEEPER", "DEFENDER", "MIDFIELDER", "FORWARD"]),
   birthDate: z.string().trim().optional().or(z.literal("")),
   bio: z.string().trim().max(3000).optional().or(z.literal("")),
-  imageUrl: z.string().trim().max(500).optional().or(z.literal("")),
+  imageUrl: optionalMediaUrl(),
   imageAlt: z.string().trim().max(160).optional().or(z.literal("")),
   active: z.boolean().default(true),
   displayOrder: z.number().int().min(0).max(999).default(0),
@@ -86,7 +106,7 @@ export const staffSchema = z.object({
   name: z.string().trim().min(2).max(120),
   role: z.string().trim().min(2).max(160),
   bio: z.string().trim().max(3000).optional().or(z.literal("")),
-  imageUrl: z.string().trim().max(500).optional().or(z.literal("")),
+  imageUrl: optionalMediaUrl(),
   imageAlt: z.string().trim().max(160).optional().or(z.literal("")),
   active: z.boolean().default(true),
   displayOrder: z.number().int().min(0).max(999).default(0),
@@ -110,8 +130,8 @@ export const standingSchema = z.object({
 
 export const partnerSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  logoUrl: z.string().trim().max(500).optional().or(z.literal("")),
-  websiteUrl: z.string().trim().url().optional().or(z.literal("")),
+  logoUrl: optionalMediaUrl(),
+  websiteUrl: optionalExternalUrl(),
   description: z.string().trim().max(1000).optional().or(z.literal("")),
   displayOrder: z.number().int().min(0).max(999).default(0),
   active: z.boolean().default(true)
@@ -133,7 +153,7 @@ export const trophySchema = z.object({
 
 export const mediaPrepareSchema = z.object({
   action: z.literal("prepare"),
-  filename: z.string().trim().min(1).max(180),
+  filename: z.string().trim().min(1).max(180).refine((value) => !/[\\/]/.test(value), "Nom de fichier invalide."),
   mimeType: z.enum(["image/jpeg", "image/png", "image/webp", "image/avif"]),
   sizeBytes: z.number().int().positive().max(8 * 1024 * 1024),
   altText: z.string().trim().min(2).max(160)
@@ -141,9 +161,9 @@ export const mediaPrepareSchema = z.object({
 
 export const mediaCompleteSchema = z.object({
   action: z.literal("complete"),
-  filename: z.string().trim().min(1).max(180),
-  storageKey: z.string().trim().min(1).max(500),
-  url: z.string().trim().min(1).max(800),
+  filename: z.string().trim().min(1).max(180).refine((value) => !/[\\/]/.test(value), "Nom de fichier invalide."),
+  storageKey: safeStorageKey,
+  url: safeMediaUrl(),
   mimeType: z.enum(["image/jpeg", "image/png", "image/webp", "image/avif"]),
   sizeBytes: z.number().int().positive().max(8 * 1024 * 1024),
   altText: z.string().trim().min(2).max(160)
