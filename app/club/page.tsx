@@ -2,7 +2,7 @@ import Image from "next/image";
 import { Icon } from "@/components/icons";
 import { getClubPageData } from "@/lib/site-data";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function ClubPage() {
   const { settings, history, trophies, staff } = await getClubPageData();

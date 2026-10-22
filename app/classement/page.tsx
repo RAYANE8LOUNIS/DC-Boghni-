@@ -1,7 +1,7 @@
 import { getStandings } from "@/lib/site-data";
 import { formatDate } from "@/lib/format";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function StandingsPage() {
   const data = await getStandings();

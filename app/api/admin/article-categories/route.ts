@@ -3,6 +3,7 @@ import { getApiSession } from "@/lib/admin";
 import { getPrisma } from "@/lib/prisma";
 import { articleCategorySchema } from "@/lib/validations";
 import { slugify } from "@/lib/format";
+import { revalidatePublicSite } from "@/lib/public-cache";
 
 async function requireUser() {
   const session = await getApiSession();
@@ -28,6 +29,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ message: parsed.error.issues[0]?.message || "Données invalides." }, { status: 400 });
   try {
     const category = await prisma.articleCategory.create({ data: { name: parsed.data.name, slug: slugify(parsed.data.name) } });
+    revalidatePublicSite();
     return NextResponse.json({ category }, { status: 201 });
   } catch {
     return NextResponse.json({ message: "Cette catégorie existe déjà ou son nom n’est pas disponible." }, { status: 409 });
@@ -44,6 +46,7 @@ export async function PATCH(request: Request) {
   if (!parsed.success) return NextResponse.json({ message: parsed.error.issues[0]?.message || "Données invalides." }, { status: 400 });
   try {
     const category = await prisma.articleCategory.update({ where: { id: body.id }, data: { name: parsed.data.name, slug: slugify(parsed.data.name) } });
+    revalidatePublicSite();
     return NextResponse.json({ category });
   } catch {
     return NextResponse.json({ message: "Impossible de modifier cette catégorie. Vérifiez les doublons." }, { status: 409 });
@@ -58,5 +61,6 @@ export async function DELETE(request: Request) {
   const body = await request.json() as { id?: string };
   if (!body.id) return NextResponse.json({ message: "Données invalides." }, { status: 400 });
   await prisma.articleCategory.delete({ where: { id: body.id } });
+  revalidatePublicSite();
   return NextResponse.json({ ok: true });
 }

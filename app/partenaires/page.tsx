@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Icon } from "@/components/icons";
 import { getPartners } from "@/lib/site-data";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function PartnersPage() {
   const partners = await getPartners();

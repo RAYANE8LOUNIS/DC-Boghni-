@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getApiSession } from "@/lib/admin";
 import { getPrisma } from "@/lib/prisma";
 import { standingSchema } from "@/lib/validations";
+import { revalidatePublicSite } from "@/lib/public-cache";
 
 async function sessionOr401() {
   const session = await getApiSession();
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ message: parsed.error.issues[0]?.message || "Données invalides." }, { status: 400 });
   const data = parsed.data;
   const standing = await prisma.standing.upsert({ where: { seasonId_competitionId_teamId: { seasonId: data.seasonId, competitionId: data.competitionId, teamId: data.teamId } }, update: { position: data.position, played: data.played, wins: data.wins, draws: data.draws, losses: data.losses, goalsFor: data.goalsFor, goalsAgainst: data.goalsAgainst, points: data.points, pointsAdjust: data.pointsAdjust, isDemo: false }, create: { ...data, isDemo: false }, include: { season: true, competition: true, team: true } });
+  revalidatePublicSite();
   return NextResponse.json({ standing });
 }
 
@@ -39,5 +41,6 @@ export async function DELETE(request: Request) {
   const body = await request.json() as { id?: string };
   if (!body.id) return NextResponse.json({ message: "Données invalides." }, { status: 400 });
   await prisma.standing.delete({ where: { id: body.id } });
+  revalidatePublicSite();
   return NextResponse.json({ ok: true });
 }

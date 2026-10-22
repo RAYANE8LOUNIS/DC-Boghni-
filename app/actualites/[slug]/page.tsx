@@ -5,7 +5,7 @@ import { CopyLinkButton } from "@/components/copy-link-button";
 import { getArticleBySlug, getPublishedArticles } from "@/lib/site-data";
 import { formatDate } from "@/lib/format";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

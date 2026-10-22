@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getApiSession } from "@/lib/admin";
 import { getPrisma } from "@/lib/prisma";
 import { historyEventSchema, trophySchema } from "@/lib/validations";
+import { revalidatePublicSite } from "@/lib/public-cache";
 
 async function sessionOr401() {
   const session = await getApiSession();
@@ -28,11 +29,15 @@ export async function POST(request: Request) {
   if (body.type === "history") {
     const parsed = historyEventSchema.safeParse(body.data);
     if (!parsed.success) return NextResponse.json({ message: parsed.error.issues[0]?.message || "Données invalides." }, { status: 400 });
-    return NextResponse.json({ item: await prisma.historyEvent.create({ data: { ...parsed.data, isDemo: false } }) }, { status: 201 });
+    const item = await prisma.historyEvent.create({ data: { ...parsed.data, isDemo: false } });
+    revalidatePublicSite();
+    return NextResponse.json({ item }, { status: 201 });
   }
   const parsed = trophySchema.safeParse(body.data);
   if (!parsed.success) return NextResponse.json({ message: parsed.error.issues[0]?.message || "Données invalides." }, { status: 400 });
-  return NextResponse.json({ item: await prisma.trophy.create({ data: { ...parsed.data, yearLabel: parsed.data.yearLabel || null, description: parsed.data.description || null, isDemo: false } }) }, { status: 201 });
+  const item = await prisma.trophy.create({ data: { ...parsed.data, yearLabel: parsed.data.yearLabel || null, description: parsed.data.description || null, isDemo: false } });
+  revalidatePublicSite();
+  return NextResponse.json({ item }, { status: 201 });
 }
 
 export async function PATCH(request: Request) {
@@ -44,11 +49,15 @@ export async function PATCH(request: Request) {
   if (body.type === "history") {
     const parsed = historyEventSchema.safeParse(body.data);
     if (!parsed.success) return NextResponse.json({ message: parsed.error.issues[0]?.message || "Données invalides." }, { status: 400 });
-    return NextResponse.json({ item: await prisma.historyEvent.update({ where: { id: body.id }, data: parsed.data }) });
+    const item = await prisma.historyEvent.update({ where: { id: body.id }, data: parsed.data });
+    revalidatePublicSite();
+    return NextResponse.json({ item });
   }
   const parsed = trophySchema.safeParse(body.data);
   if (!parsed.success) return NextResponse.json({ message: parsed.error.issues[0]?.message || "Données invalides." }, { status: 400 });
-  return NextResponse.json({ item: await prisma.trophy.update({ where: { id: body.id }, data: { ...parsed.data, yearLabel: parsed.data.yearLabel || null, description: parsed.data.description || null } }) });
+  const item = await prisma.trophy.update({ where: { id: body.id }, data: { ...parsed.data, yearLabel: parsed.data.yearLabel || null, description: parsed.data.description || null } });
+  revalidatePublicSite();
+  return NextResponse.json({ item });
 }
 
 export async function DELETE(request: Request) {
@@ -60,5 +69,6 @@ export async function DELETE(request: Request) {
   if (!body.type || !body.id) return NextResponse.json({ message: "Données invalides." }, { status: 400 });
   if (body.type === "history") await prisma.historyEvent.delete({ where: { id: body.id } });
   else await prisma.trophy.delete({ where: { id: body.id } });
+  revalidatePublicSite();
   return NextResponse.json({ ok: true });
 }

@@ -3,6 +3,7 @@ import { getApiSession } from "@/lib/admin";
 import { getPrisma } from "@/lib/prisma";
 import { slugify } from "@/lib/format";
 import { partnerSchema } from "@/lib/validations";
+import { revalidatePublicSite } from "@/lib/public-cache";
 
 async function sessionOr401() {
   const session = await getApiSession();
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
   const data = parsed.data;
   const slug = `${slugify(data.name)}-${Date.now().toString().slice(-6)}`;
   const partner = await prisma.partner.create({ data: { ...data, slug, logoUrl: data.logoUrl || null, websiteUrl: data.websiteUrl || null, description: data.description || null, isDemo: false } });
+  revalidatePublicSite();
   return NextResponse.json({ partner }, { status: 201 });
 }
 
@@ -38,6 +40,7 @@ export async function PATCH(request: Request) {
   if (!parsed.success) return NextResponse.json({ message: parsed.error.issues[0]?.message || "Données invalides." }, { status: 400 });
   const data = parsed.data;
   const partner = await prisma.partner.update({ where: { id: body.id }, data: { ...data, logoUrl: data.logoUrl || null, websiteUrl: data.websiteUrl || null, description: data.description || null } });
+  revalidatePublicSite();
   return NextResponse.json({ partner });
 }
 
@@ -49,5 +52,6 @@ export async function DELETE(request: Request) {
   const body = await request.json() as { id?: string };
   if (!body.id) return NextResponse.json({ message: "Données invalides." }, { status: 400 });
   await prisma.partner.delete({ where: { id: body.id } });
+  revalidatePublicSite();
   return NextResponse.json({ ok: true });
 }

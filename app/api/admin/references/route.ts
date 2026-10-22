@@ -3,6 +3,7 @@ import { getApiSession } from "@/lib/admin";
 import { getPrisma } from "@/lib/prisma";
 import { slugify } from "@/lib/format";
 import { referenceSchema } from "@/lib/validations";
+import { revalidatePublicSite } from "@/lib/public-cache";
 
 async function authorized() {
   const session = await getApiSession();
@@ -35,13 +36,16 @@ export async function POST(request: Request) {
         if (data.isCurrent) await tx.season.updateMany({ data: { isCurrent: false } });
         return tx.season.create({ data: { name: data.name, slug, isCurrent: data.isCurrent, isDemo: false } });
       });
+      revalidatePublicSite();
       return NextResponse.json({ item: season }, { status: 201 });
     }
     if (data.type === "competition") {
       const competition = await prisma.competition.create({ data: { name: data.name, slug, isDemo: false } });
+      revalidatePublicSite();
       return NextResponse.json({ item: competition }, { status: 201 });
     }
     const team = await prisma.team.create({ data: { name: data.name, slug, isClub: data.isClub, logoUrl: data.logoUrl || null, isDemo: false } });
+    revalidatePublicSite();
     return NextResponse.json({ item: team }, { status: 201 });
   } catch {
     return NextResponse.json({ message: "Impossible de créer cet élément. Le nom ou le slug existe peut-être déjà." }, { status: 409 });
@@ -62,10 +66,17 @@ export async function PATCH(request: Request) {
         if (data.isCurrent) await tx.season.updateMany({ where: { id: { not: data.id } }, data: { isCurrent: false } });
         return tx.season.update({ where: { id: data.id }, data: { name: data.name, slug, isCurrent: data.isCurrent } });
       });
+      revalidatePublicSite();
       return NextResponse.json({ item: season });
     }
-    if (data.type === "competition") return NextResponse.json({ item: await prisma.competition.update({ where: { id: data.id }, data: { name: data.name, slug } }) });
-    return NextResponse.json({ item: await prisma.team.update({ where: { id: data.id }, data: { name: data.name, slug, isClub: data.isClub, logoUrl: data.logoUrl || null } }) });
+    if (data.type === "competition") {
+      const item = await prisma.competition.update({ where: { id: data.id }, data: { name: data.name, slug } });
+      revalidatePublicSite();
+      return NextResponse.json({ item });
+    }
+    const item = await prisma.team.update({ where: { id: data.id }, data: { name: data.name, slug, isClub: data.isClub, logoUrl: data.logoUrl || null } });
+    revalidatePublicSite();
+    return NextResponse.json({ item });
   } catch {
     return NextResponse.json({ message: "Impossible de modifier cet élément. Vérifiez les doublons ou les relations existantes." }, { status: 409 });
   }
@@ -82,6 +93,7 @@ export async function DELETE(request: Request) {
     if (body.type === "season") await prisma.season.delete({ where: { id: body.id } });
     else if (body.type === "competition") await prisma.competition.delete({ where: { id: body.id } });
     else await prisma.team.delete({ where: { id: body.id } });
+    revalidatePublicSite();
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ message: "Cet élément est encore utilisé par des données existantes." }, { status: 409 });

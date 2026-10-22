@@ -1,5 +1,7 @@
 import { demoArticles, demoHistory, demoMatches, demoPlayers, demoSettings, demoStaff, demoStandings, demoTrophies } from "@/lib/demo-data";
 import { getPrisma } from "@/lib/prisma";
+import { unstable_cache } from "next/cache";
+import { cache } from "react";
 
 export type PublicSettings = {
   clubName: string; shortName: string; tagline: string | null; description: string | null; nickname?: string | null; presidentName?: string | null; presidentRole?: string | null; presidentMessage?: string | null; currentCompetition?: string | null; currentDivision?: string | null; sportingNote?: string | null; address: string | null; email: string | null; phone: string | null; mapsUrl: string | null; instagramUrl: string | null; facebookUrl: string | null; youtubeUrl: string | null; logoUrl: string | null; heroImageUrl: string | null; primaryColor: string; accentColor: string; legalName: string | null; privacyText: string | null; officialValidated: boolean;
@@ -14,7 +16,7 @@ function normalizeSettings(settings: Partial<PublicSettings> | null | undefined)
 function normalizeArticle(article: { id: string; title: string; slug: string; excerpt?: string | null; content: string; imageUrl?: string | null; imageAlt?: string | null; status?: string; publishedAt?: Date | null; createdAt?: Date; category?: { name: string } | string | null }): PublicArticle { const category = typeof article.category === "string" ? article.category : article.category?.name || "Actualité"; return { id: article.id, title: article.title, slug: article.slug, excerpt: article.excerpt || null, content: article.content, imageUrl: article.imageUrl || null, imageAlt: article.imageAlt || null, category, date: article.publishedAt || article.createdAt || null, publishedAt: article.publishedAt || null, status: article.status || "PUBLISHED" }; }
 function normalizePlayer(player: { id: string; name: string; slug: string; number?: number | null; position: string; birthDate?: Date | null; imageUrl?: string | null; imageAlt?: string | null; bio?: string | null }): PublicPlayer { return { id: player.id, name: player.name, slug: player.slug, number: player.number ?? null, position: player.position, birthDate: player.birthDate || null, imageUrl: player.imageUrl || null, imageAlt: player.imageAlt || null, bio: player.bio || null }; }
 
-export async function getSettings() {
+const getSettingsUncached = async function getSettingsUncached() {
   const prisma = getPrisma();
   if (!prisma) return normalizeSettings(demoSettings);
   try {
@@ -23,9 +25,12 @@ export async function getSettings() {
   } catch {
     return normalizeSettings(demoSettings);
   }
-}
+};
 
-export async function getHomeData() {
+const getCachedSettings = unstable_cache(getSettingsUncached, ["club-settings"], { revalidate: 300, tags: ["club-settings"] });
+export const getSettings = cache(getCachedSettings);
+
+const getHomeDataUncached = async function getHomeDataUncached() {
   const prisma = getPrisma();
   if (!prisma) return { settings: normalizeSettings(demoSettings), articles: demoArticles.map((article) => normalizeArticle(article)), upcoming: null, latestResult: null, standings: demoStandings as PublicStanding[], players: demoPlayers.map((player) => normalizePlayer({ ...player, position: player.position === "Gardien" ? "GOALKEEPER" : player.position === "Défenseur" ? "DEFENDER" : player.position === "Milieu" ? "MIDFIELDER" : "FORWARD" })) };
   try {
@@ -48,9 +53,11 @@ export async function getHomeData() {
   } catch {
     return { settings: normalizeSettings(demoSettings), articles: demoArticles.map((article) => normalizeArticle(article)), upcoming: null, latestResult: null, standings: demoStandings as PublicStanding[], players: demoPlayers.map((player) => normalizePlayer({ ...player, position: "DEFENDER" })) };
   }
-}
+};
 
-export async function getPublishedArticles(query?: { search?: string; category?: string }) {
+export const getHomeData = unstable_cache(getHomeDataUncached, ["home-data"], { revalidate: 30, tags: ["public-site", "club-settings"] });
+
+const getPublishedArticlesUncached = async function getPublishedArticlesUncached(query?: { search?: string; category?: string }) {
   const prisma = getPrisma();
   if (!prisma) {
     const filtered = demoArticles.filter((article) => {
@@ -69,9 +76,14 @@ export async function getPublishedArticles(query?: { search?: string; category?:
   } catch {
     return { articles: demoArticles.map(normalizeArticle), categories: [...new Set(demoArticles.map((article) => article.category))] };
   }
+};
+
+const getCachedPublishedArticles = unstable_cache(getPublishedArticlesUncached, ["published-articles"], { revalidate: 60, tags: ["public-site"] });
+export async function getPublishedArticles(query?: { search?: string; category?: string }) {
+  return getCachedPublishedArticles(query);
 }
 
-export async function getArticleBySlug(slug: string) {
+const getArticleBySlugUncached = async function getArticleBySlugUncached(slug: string) {
   const prisma = getPrisma();
   if (!prisma) { const article = demoArticles.find((item) => item.slug === slug); return article ? normalizeArticle(article) : null; }
   try {
@@ -79,9 +91,12 @@ export async function getArticleBySlug(slug: string) {
   } catch {
     const article = demoArticles.find((item) => item.slug === slug); return article ? normalizeArticle(article) : null;
   }
-}
+};
 
-export async function getFixtures() {
+const getCachedArticleBySlug = unstable_cache(getArticleBySlugUncached, ["article-by-slug"], { revalidate: 60, tags: ["public-site"] });
+export const getArticleBySlug = (slug: string) => getCachedArticleBySlug(slug);
+
+const getFixturesUncached = async function getFixturesUncached() {
   const prisma = getPrisma();
   if (!prisma) return { seasons: [{ name: "Saison à renseigner", slug: "demo" }], competitions: [{ name: "Compétition à renseigner", slug: "demo" }], upcoming: [], results: [] };
   try {
@@ -94,9 +109,27 @@ export async function getFixtures() {
   } catch {
     return { seasons: [], competitions: [], upcoming: [], results: [] };
   }
-}
+};
 
-export async function getStandings() {
+export const getFixtures = unstable_cache(getFixturesUncached, ["fixtures"], { revalidate: 30, tags: ["public-site"] });
+
+const getMatchByIdUncached = async function getMatchByIdUncached(id: string) {
+  const prisma = getPrisma();
+  if (!prisma) return null;
+  return prisma.match.findUnique({ where: { id }, include: { homeTeam: true, awayTeam: true, competition: true, season: true } }).catch(() => null);
+};
+
+export const getMatchById = unstable_cache(getMatchByIdUncached, ["match-by-id"], { revalidate: 30, tags: ["public-site"] });
+
+const getPlayerBySlugUncached = async function getPlayerBySlugUncached(slug: string) {
+  const prisma = getPrisma();
+  if (!prisma) return null;
+  return prisma.player.findUnique({ where: { slug }, include: { season: true } }).catch(() => null);
+};
+
+export const getPlayerBySlug = unstable_cache(getPlayerBySlugUncached, ["player-by-slug"], { revalidate: 60, tags: ["public-site"] });
+
+const getStandingsUncached = async function getStandingsUncached() {
   const prisma = getPrisma();
   if (!prisma) return { season: { name: "Saison à renseigner" }, competition: { name: "Compétition à renseigner" }, standings: demoStandings.map((row) => ({ ...row, pointsAdjust: 0 })), updatedAt: null };
   try {
@@ -107,9 +140,11 @@ export async function getStandings() {
   } catch {
     return { season: { name: "Saison à renseigner" }, competition: { name: "Compétition à renseigner" }, standings: demoStandings.map((row) => ({ ...row, pointsAdjust: 0 })), updatedAt: null };
   }
-}
+};
 
-export async function getSquad() {
+export const getStandings = unstable_cache(getStandingsUncached, ["standings"], { revalidate: 30, tags: ["public-site"] });
+
+const getSquadUncached = async function getSquadUncached() {
   const prisma = getPrisma();
   if (!prisma) return { season: { name: "Saison à renseigner" }, players: demoPlayers.map((player) => normalizePlayer({ ...player, position: "DEFENDER" })), staff: [] };
   try {
@@ -122,9 +157,11 @@ export async function getSquad() {
   } catch {
     return { season: { name: "Saison à renseigner" }, players: demoPlayers.map((player) => normalizePlayer({ ...player, position: "DEFENDER" })), staff: [] };
   }
-}
+};
 
-export async function getClubPageData() {
+export const getSquad = unstable_cache(getSquadUncached, ["squad"], { revalidate: 60, tags: ["public-site"] });
+
+const getClubPageDataUncached = async function getClubPageDataUncached() {
   const prisma = getPrisma();
   if (!prisma) return { settings: normalizeSettings(demoSettings), history: demoHistory, trophies: demoTrophies, staff: demoStaff };
   try {
@@ -138,9 +175,11 @@ export async function getClubPageData() {
   } catch {
     return { settings: normalizeSettings(demoSettings), history: demoHistory, trophies: demoTrophies, staff: demoStaff };
   }
-}
+};
 
-export async function getPartners() {
+export const getClubPageData = unstable_cache(getClubPageDataUncached, ["club-page"], { revalidate: 300, tags: ["public-site", "club-settings"] });
+
+const getPartnersUncached = async function getPartnersUncached() {
   const prisma = getPrisma();
   if (!prisma) return [];
   try {
@@ -148,4 +187,6 @@ export async function getPartners() {
   } catch {
     return [];
   }
-}
+};
+
+export const getPartners = unstable_cache(getPartnersUncached, ["partners"], { revalidate: 300, tags: ["public-site"] });

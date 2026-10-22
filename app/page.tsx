@@ -8,7 +8,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { formatDate, formatTime } from "@/lib/format";
 import { getHomeData } from "@/lib/site-data";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 30;
 
 export default async function HomePage() {
   const { settings, articles, upcoming, latestResult, standings, players } = await getHomeData();

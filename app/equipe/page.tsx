@@ -4,7 +4,7 @@ import { SectionHeading } from "@/components/section-heading";
 import { getSquad } from "@/lib/site-data";
 import { calculateAge } from "@/lib/format";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 const groups = [{ key: "GOALKEEPER", label: "Gardiens" }, { key: "DEFENDER", label: "Défenseurs" }, { key: "MIDFIELDER", label: "Milieux" }, { key: "FORWARD", label: "Attaquants" }];
 
